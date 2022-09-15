@@ -131,4 +131,318 @@
 
 
 ## Part 5. Статическая маршрутизация сети
+####5.1. Настройка адресов машин
+* Настроить конфигурации машин в etc/netplan/00-installer-config.yaml согласно сети на рисунке. В отчёт поместить скрины с содержанием файла etc/netplan/00-installer-config.yaml для каждой машины.
 
+![ws11_netplan](screenshots/ws11_netplan.png)
+
+![r1_netplan](screenshots/r1_netplan.png)
+
+![r2_netplan](screenshots/r2_netplan.png)
+
+![ws21_netplan](screenshots/ws21_netplan.png)
+
+![ws22_netplan](screenshots/ws22_netplan.png)
+
+
+
+* Перезапустить сервис сети:
+__sudo netplan apply__
+
+* Если ошибок нет, то командой ip -4 a проверить, что адрес машины задан верно:
+_ws11:_
+![ip-4a_ws11](screenshots/ip-4a_ws11.png)
+
+_r1:_
+![ip-4a_r1](screenshots/ip-4a_r1.png)
+
+_r2:_
+![ip-4a_r2](screenshots/ip-4a_r2.png)
+
+_ws21:_
+![ip-4a_ws21](screenshots/ip-4a_ws21.png)
+
+_ws22:_
+![ip-4a_ws22](screenshots/ip-4a_ws22.png)
+
+Также пропинговать ws22 с ws21:
+![ping_ws22-ws21](screenshots/ping_ws22-ws21.png)
+
+Аналогично пропинговать r1 с ws11:
+
+![ping_r1-ws11](screenshots/ping_r1-ws11.png)
+
+
+####5.2. Включение переадресации IP-адресов.
+
+* Для включения переадресации IP, выполните команду на роутерах:
+sysctl -w net.ipv4.ip_forward=1
+При таком подходе переадресация не будет работать после перезагрузки системы.
+
+В отчёт поместить скрин с вызовом и выводом использованной команды:
+
+_r1:_
+![sysctl_r1](screenshots/sysctl_r1.png)
+
+_r2:_
+![sysctl_r2](screenshots/sysctl_r2.png)
+
+
+Откройте файл /etc/sysctl.conf и добавьте в него следующую строку:
+net.ipv4.ip_forward = 1
+При использовании этого подхода, IP-переадресация включена на постоянной основе.
+В отчёт поместить скрин с содержанием изменённого файла /etc/sysctl.conf:
+
+_r1:_
+![sysctl_conf_r1](screenshots/sysctl_conf_r1.png)
+
+_r2:_
+![sysctl_conf_r2](screenshots/sysctl_conf_r2.png)
+
+
+####5.3. Установка маршрута по-умолчанию
+
+* Настроить маршрут по-умолчанию (шлюз) для рабочих станций. Для этого добавить default перед IP роутера в файле конфигураций.
+В отчёт поместить скрин с содержанием файла etc/netplan/00-installer-config.yaml:
+
+_ws11:_
+![ws11_conf](screenshots/ws11_conf.png)
+
+_ws21:_
+![ws21_conf](screenshots/ws21_conf.png)
+
+_ws22:_
+![ws22_conf](screenshots/ws22_conf.png)
+
+
+* Вызвать ip r и показать, что добавился маршрут в таблицу маршрутизации.
+В отчёт поместить скрин с вызовом и выводом использованной команды:
+
+_ws11:_
+![ws11_ip_r](screenshots/ws11_ip_r.png)
+
+_ws21:_
+![ws21_ip_r](screenshots/ws21_ip_r.png)
+
+_ws22:_
+![ws22_ip_r](screenshots/ws22_ip_r.png)
+
+
+
+* Пропинговать с ws11 роутер r2 и показать на r2, что пинг доходит. Для этого использовать команду:
+__tcpdump -tn -i eth1__
+В отчёт поместить скрин с вызовом и выводом использованных команд.
+
+![ping_ws11](screenshots/ping_ws11.png)
+
+![tcpdump_r2](screenshots/tcpdump_r2.png)
+
+
+
+####5.4. Добавление статических маршрутов
+
+* Добавить в роутеры r1 и r2 статические маршруты в файле конфигураций. В отчёт поместить скрины с содержанием изменённого файла etc/netplan/00-installer-config.yaml для каждого роутера:
+
+_r1:_
+
+![r1_conf](screenshots/r1_conf.png)
+
+_r2:_
+
+![r2_conf](screenshots/r2_conf.png)
+
+
+Вызвать ip r и показать таблицы с маршрутами на обоих роутерах. В отчёт поместить скрин с вызовом и выводом использованной команды:
+
+_r1:_
+![r1_ip_r](screenshots/r1_ip_r.png)
+
+_r2:_
+![r2_ip_r](screenshots/r2_ip_r.png)
+
+
+Запустить команды на ws11:
+ip r list 10.10.0.0/[маска сети] и ip r list 0.0.0.0/0
+В отчёт поместить скрин с вызовом и выводом использованных команд:
+
+
+![ws11_ipr](screenshots/ws11_ipr.png)
+
+В отчёте объяснить, почему для адреса 10.10.0.0/[маска сети] был выбран маршрут, отличный от 0.0.0.0/0, хотя он попадает под маршрут по-умолчанию.
+
+Для локальной подсети 10.10.0.0/18 у нас отдельный маршрут, чтобы пакеты не отправлялись на все остальные адреса, входящие в 0.0.0.0/0
+
+
+
+## 5.5. Построение списка маршрутизаторов
+
+Запустить на r1 команду дампа:
+```tcpdump -tnv -i eth0```
+
+![r1_tcpdump](screenshots/r1_tcpdump.png)
+
+* При помощи утилиты traceroute построить список маршрутизаторов на пути от ws11 до ws21:
+![ws11_traceroute](screenshots/ws11_traceroute.png)
+
+* В отчёт поместить скрины с вызовом и выводом использованных команд (tcpdump и traceroute). В отчёте, опираясь на вывод, полученный из дампа на r1, объяснить принцип работы построения пути при помощи traceroute:
+
+_Чтобы доставить пакет от ws11 (IP 10.10.0.2) до ws21(IP 10.20.0.10, он пройдет через шлюз 10.0.0.1 и там свяжется со шлюзом 10.100.0.12 и через него попадет в нужную подсеть 10.20.0.0/26. На tcpdump видно, как ПК связывается с роутером, который является шлюзом по умолчанию, и с помощью ARP запроса они  узнают кому принадлежит нужный IP адрес._
+
+## 5.6. Использование протокола ICMP при маршрутизации
+
+* Запустить на r1 перехват сетевого трафика, проходящего через eth0 с помощью команды:
+```tcpdump -n -i eth0 icmp```
+* Пропинговать с ws11 несуществующий IP (например, 10.30.0.111) с помощью команды:
+```ping -c 1 10.30.0.111```
+
+   В отчёт поместить скрин с вызовом и выводом использованных команд:
+
+![ws11_ping](screenshots/ws11_pingg.png)
+
+![r1_tcpdumpp](screenshots/r1_tcpdumpp.png)
+
+
+
+## Part 6. Динамическая настройка IP с помощью DHCP
+
+* Для r2 настроить в файле /etc/dhcp/dhcpd.conf конфигурацию службы DHCP:
+
+    1) указать адрес маршрутизатора по-умолчанию, DNS-сервер и адрес внутренней сети:
+
+![r2_dhcp_conf](screenshots/r2_dhcp_conf.png)
+![r2_dhcp_conf2](screenshots/r2_dhcp_conf2.png)
+
+    2) в файле resolv.conf прописать nameserver 8.8.8.8:
+
+
+![r2_resolv_conf](screenshots/r2_resolv_conf.png)
+
+* Перезагрузить службу DHCP командой systemctl restart isc-dhcp-server. Машину ws21 перезагрузить при помощи reboot и через ip a показать, что она получила адрес. Также пропинговать ws22 с ws21.
+
+__r2:__
+![r2_dhcp_restart](screenshots/r2_dhcp_restart.png)
+
+__ws21:__
+
+![ws21_ip](screenshots/ws21_ip.png)
+
+__ping ws21-ws22:__
+
+![ping ws21_ws22](screenshots/ping_ws21_ws22.png)
+
+
+* Указать MAC адрес у ws11, для этого в etc/netplan/00-installer-config.yaml надо добавить строки: macaddress: 10:10:10:10:10:BA, dhcp4: true. В отчёт поместить скрин с содержанием изменённого файла etc/netplan/00-installer-config.yaml:
+
+![ws11_netplan-conf](screenshots/ws11_netplan-conf.png)
+
+
+* Для r1 настроить аналогично r2, но сделать выдачу адресов с жесткой привязкой к MAC-адресу (ws11). Провести аналогичные тесты. В отчёте этот пункт описать аналогично настройке для r2:
+
+__r1:__
+
+![r1_dhcp_conf_mac](screenshots/r1_dhcp_conf_mac.png)
+
+__ws11:__
+
+* Задаем на ws11 новый mac-адрес в файле /etc/netplan/*.yaml:
+![ws11_netplan-conf](screenshots/ws11_netplan-conf.png)
+
+* Также меняем mac-адрес адаптера в настройках сети Virtual Box - это специфика смены mac-адреса на виртуальной машине.
+
+* Перезагружаем ws11 командой reboot и проверяем выдался ли ip через команду ```ip a```:
+
+![ws11_ip_dhcp](screenshots/ws11_ip_dhcp.png)
+
+
+Все машины в этой и смежной сети пингуются:
+
+![ws11_local_ping](screenshots/ws11_local_ping.png)
+
+
+* Запросить с ws21 обновление ip адреса. В отчёте поместить скрины ip до и после обновления:
+
+![ws21_renew_ip](screenshots/ws21_renew_ip.png)
+
+В отчёте описать, какими опциями DHCP сервера пользовались в данном пункте:
+
+Сначала мы через команду ```dhclient -r``` освобождаем выданный нам IP, а потом запрашиваем новый через команду ```dhclient```.
+
+
+## Part 7. NAT
+* В файле ```/etc/apache2/ports.conf``` на ws22 и r1 изменить строку Listen 80 на Listen 0.0.0.0:80, то есть сделать сервер Apache2 общедоступным
+
+__ws22:__
+
+![ws22_apache_conf](screenshots/ws22_apache_conf.png)
+
+
+
+__r1:__
+
+![r2_apache_conf](screenshots/r2_apache_conf.png)
+
+* Запустить веб-сервер Apache командой ```service apache2 start``` на ws22 и r1. В отчёт поместить скрины с вызовом и выводом использованной команды:
+
+__ws22:__
+
+![ws22_apache_start](screenshots/ws22_apache_start.png)
+__r1:__
+
+![r2_apache_start](screenshots/r2_apache_start.png)
+
+* Добавить в фаервол, созданный по аналогии с фаерволом из Части 4, на r2 следующие правила:
+![r2_firewall](screenshots/r2_firewall.png)
+
+
+* Проверить соединение между ws22 и r1 командой ping. При запуске файла с этими правилами, ws22 не должна "пинговаться" с r1.
+В отчёт поместить скрины с вызовом и выводом использованной команды:
+
+![r1_ping_ws22](screenshots/r1_ping_ws22.png)
+
+* Добавить в файл ещё одно правило:
+Разрешить маршрутизацию всех пакетов протокола ICMP.
+Запускать файл также, как в Части 4. Проверить соединение между ws22 и r1 командой ping. При запуске файла с этими правилами, ws22 должна "пинговаться" с r1.
+В отчёт поместить скрины с вызовом и выводом использованной команды:
+
+![ws22_ping_r1](screenshots/ws22_ping_r1.png)
+
+
+* Включить SNAT, а именно маскирование всех локальных ip из локальной сети, находящейся за r2 (по обозначениям из Части 5 - сеть 10.20.0.0)
+
+* Включить DNAT на 8080 порт машины r2 и добавить к веб-серверу Apache, запущенному на ws22, доступ извне сети. В отчёт поместить скрин с содержанием изменённого файла:
+
+![r2_firewal2](screenshots/r2_firewal2.png)
+
+* Проверить соединение по TCP для SNAT, для этого с ws22 подключиться к серверу Apache на r1 командой: ```telnet [адрес] [порт]```
+
+![ws22_telnet](screenshots/ws22_telnet.png)
+
+* Проверить соединение по TCP для DNAT, для этого с r1 подключиться к серверу Apache на ws22 командой telnet (обращаться по адресу r2 и порту 8080):
+
+![r1_telnet](screenshots/r1_telnet.png)
+
+
+## Part 8. Дополнительно. Знакомство с SSH Tunnels 
+
+* Запустить веб-сервер Apache на ws22 только на localhost (то есть в файле /etc/apache2/ports.conf изменить строку Listen 80 на Listen localhost:80):
+
+![ws22_port80](screenshots/ws22_port80.png)
+
+
+* Воспользоваться Local TCP forwarding с ws21 до ws22, чтобы получить доступ к веб-серверу на ws22 с ws21:
+
+![ws21_LSSH](screenshots/ws21_LSSH.png)
+
+Проверяем соединение через telnet:
+
+![ws21_telnet](screenshots/ws21_telnet.png)
+
+
+* Воспользоваться Remote TCP forwarding c ws11 до ws22, чтобы получить доступ к веб-серверу на ws22 с ws11:
+
+![ws22_RSSH](screenshots/ws22_RSSH.png)
+
+
+Проверяем соединение через telnet:
+
+![ws11_telnet](screenshots/ws11_telnet.png)
